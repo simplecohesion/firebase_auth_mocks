@@ -1,4 +1,8 @@
+# Firebase Auth Mocks
+
 Mocks for [Firebase Auth](https://pub.dev/packages/firebase_auth). Use this package with [google_sign_in_mocks](https://pub.dev/packages/google_sign_in_mocks) to write unit tests involving Firebase Authentication.
+
+[![pub package](https://img.shields.io/pub/v/firebase_auth_mocks.svg)](https://pub.dartlang.org/packages/firebase_auth_mocks)
 
 ## Usage
 
@@ -38,7 +42,9 @@ main() {
   - firing events on sign-in to `authStateChanges` and `userChanges`.
   - `signInWithCredential`, `signInWithEmailAndPassword`, `signInWithCustomToken`,
     `signInAnonymously` and `createUserWithEmailAndPassword` signs in.
-  - `signOut` method.
+  - `sendSignInLinkToEmail`, `confirmPasswordReset` and `verifyPasswordResetCode`.
+  - `verifyPhoneNumber` resolves `codeSent`.
+  - `signOut`
   - `sendPasswordResetEmail`
   - `currentUser`
   - the ability to throw exceptions using `authExceptions`:
@@ -56,7 +62,16 @@ main() {
   - `updatePassword`
   - `delete`
   - `sendEmailVerification`
+  - `getIdToken` and `getIdTokenResult`
   - the ability to throw exceptions.
+
+
+## Compatibility table
+
+| firebase_auth | firebase_auth_mocks |
+|---------------|---------------------|
+| 4.0.0         | 0.9.0               |
+| 3.5.0         | 0.8.7               |
 
 ## Features and bugs
 

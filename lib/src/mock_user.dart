@@ -1,6 +1,8 @@
+import 'package:dart_jsonwebtoken/dart_jsonwebtoken.dart';
 import 'package:equatable/equatable.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_auth_mocks/src/mock_user_credential.dart';
+import 'package:uuid/uuid.dart';
 
 class MockUser with EquatableMixin implements User {
   final bool _isAnonymous;
@@ -14,11 +16,13 @@ class MockUser with EquatableMixin implements User {
   final String? _refreshToken;
   final UserMetadata? _metadata;
   final IdTokenResult? _idTokenResult;
+  late final DateTime _idTokenAuthTime;
+  final DateTime? _idTokenExp;
 
   MockUser({
     bool isAnonymous = false,
     bool isEmailVerified = true,
-    String uid = 'some_random_id',
+    String? uid,
     String? email,
     String? displayName,
     String? phoneNumber,
@@ -27,9 +31,11 @@ class MockUser with EquatableMixin implements User {
     String? refreshToken,
     UserMetadata? metadata,
     IdTokenResult? idTokenResult,
+    DateTime? idTokenAuthTime,
+    DateTime? idTokenExp,
   })  : _isAnonymous = isAnonymous,
         _isEmailVerified = isEmailVerified,
-        _uid = uid,
+        _uid = uid ?? const Uuid().v4(),
         _email = email,
         _displayName = displayName,
         _phoneNumber = phoneNumber,
@@ -37,7 +43,9 @@ class MockUser with EquatableMixin implements User {
         _providerData = providerData ?? [],
         _refreshToken = refreshToken,
         _metadata = metadata,
-        _idTokenResult = idTokenResult;
+        _idTokenResult = idTokenResult,
+        _idTokenAuthTime = idTokenAuthTime ?? DateTime.now(),
+        _idTokenExp = idTokenExp;
 
   FirebaseAuthException? _exception;
 
@@ -57,7 +65,7 @@ class MockUser with EquatableMixin implements User {
   String? get email => _email;
 
   @override
-  String? get displayName => _displayName;
+  String? get displayName => _displayName ?? 'fake_name';
 
   set displayName(String? value) {
     _displayName = value;
@@ -67,7 +75,7 @@ class MockUser with EquatableMixin implements User {
   String? get phoneNumber => _phoneNumber;
 
   @override
-  String? get photoURL => _photoURL;
+  String? get photoURL => _photoURL ?? 'https://i.stack.imgur.com/34AD2.jpg';
 
   @override
   List<UserInfo> get providerData => _providerData;
@@ -76,13 +84,52 @@ class MockUser with EquatableMixin implements User {
   String? get refreshToken => _refreshToken;
 
   @override
-  Future<String> getIdToken([bool forceRefresh = false]) async {
-    return Future.value('fake_token');
+  Future<IdTokenResult> getIdTokenResult([bool forceRefresh = false]) {
+    return Future.value(_idTokenResult ??
+        IdTokenResult({
+          'authTimestamp': 1655946582,
+          'claims': {},
+          'expirationTimestamp': 1656305736,
+          'issuedAtTimestamp': 1656302136,
+          'token': 'fake_token',
+          'signInProvider': 'google.com'
+        }));
   }
 
   @override
-  Future<IdTokenResult> getIdTokenResult([bool forceRefresh = false]) {
-    return Future.value(_idTokenResult ?? IdTokenResult({}));
+  Future<String> getIdToken([bool forceRefresh = false]) {
+    final payload = {
+      'name': displayName,
+      'picture': photoURL,
+      'iss': 'fake_iss',
+      'aud': 'fake_aud',
+      'auth_time': _idTokenAuthTime.millisecondsSinceEpoch ~/ 1000,
+      'user_id': uid,
+      'sub': uid,
+      // https://firebase.google.com/docs/reference/admin/node/firebase-admin.auth.decodedidtoken
+      'exp': (_idTokenExp ?? DateTime.now().add(Duration(hours: 1)))
+              .millisecondsSinceEpoch ~/
+          1000,
+      'email': email,
+      'email_verified': emailVerified,
+      'firebase': {
+        'identities': {
+          'google.com': ['fake_identity'],
+          'email': [email]
+        },
+        'sign_in_provider': 'google.com'
+      }
+    };
+    // Create a json web token
+    final jwt = JWT(
+      payload,
+      issuer: 'https://github.com/jonasroussel/dart_jsonwebtoken',
+    );
+
+    // Sign it (default with HS256 algorithm)
+    // jwt.sign will populate iat
+    final token = jwt.sign(SecretKey('secret passphrase'));
+    return Future.value(token);
   }
 
   @override
